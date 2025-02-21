@@ -1,6 +1,8 @@
 #include <Windows.h> 
 #include <chrono>
 #include <string>
+#include <fstream>
+#include <chrono>
 #include "imgui/imgui.h"
 
 // Dear ImGui: standalone example application for DirectX 11
@@ -23,7 +25,8 @@ static ID3D11Device* g_pd3dDevice = nullptr;
 static ID3D11DeviceContext* g_pd3dDeviceContext = nullptr;
 static IDXGISwapChain* g_pSwapChain = nullptr;
 static bool                     g_SwapChainOccluded = false;
-static bool                     displayTime = false;
+bool                            displayTime = true;
+//static std::chrono::time_point<std::chrono::steady_clock> start_Time; // W.I.P 21.02.2025
 static bool                     mousePos = false;
 static bool                     Screensize = false;
 static UINT                     g_ResizeWidth = 0, g_ResizeHeight = 0;
@@ -39,15 +42,23 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // Main code
 int main(int, char**)
 {
+   
+    
     // Create application window
     //ImGui_ImplWin32_EnableDpiAwareness();
-    WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
-    ::RegisterClassExW(&wc);
-    HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"1337 mod menu ", WS_OVERLAPPEDWINDOW,  100, 100, 1280, 800, nullptr, nullptr, wc.hInstance, nullptr);
-   
+ 
+    // Hide the console window
+    ::ShowWindow(::GetConsoleWindow(), SW_HIDE);
 
-    SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE)  | WS_EX_LAYERED);
-    SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);
+     WNDCLASSEXW wc = { sizeof(wc), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(nullptr), nullptr, nullptr, nullptr, nullptr, L"ImGui Example", nullptr };
+      ::RegisterClassExW(&wc);
+      HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"1337 mod menu",
+          WS_POPUP,  // WS_POPUP für echtes Vollbild ohne Rahmen
+          0, 0, GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN),
+          nullptr, nullptr, wc.hInstance, nullptr);
+
+      SetWindowLong(hwnd, GWL_EXSTYLE, GetWindowLong(hwnd, GWL_EXSTYLE) | WS_EX_LAYERED);
+      SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 255, LWA_COLORKEY);
     
    
 
@@ -101,8 +112,8 @@ int main(int, char**)
     // Our state
     bool show_demo_window = true;
     bool show_another_window = false;
-    bool show_time_coded = false;
-    ImVec4 clear_color = ImVec4(0.059f, 0.755f, 0.448f, 1.000f);
+    //bool show_time_coded = false; idk if i need this 21.02.2025
+    ImVec4 clear_color = ImVec4(0.424f, 0.000f, 0.000f, 0.000f);
    
 
     // Main loop
@@ -147,9 +158,9 @@ int main(int, char**)
         ImGui::NewFrame();
 
         // 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-        if (show_demo_window)
+            /*if (!show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
-
+            */
         // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
            
@@ -165,7 +176,8 @@ int main(int, char**)
             ImGui::Checkbox("Another Window", &show_another_window);
 
             ImGui::SliderFloat("float", &f, 0.0f, 1.0f);                        // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color);             // Edit 3 floats representing a color
+            //using coloredit4 cuz with 3 there is no alpha box lol
+            ImGui::ColorEdit4("clear color", (float*)&clear_color);             // Edit 3 floats representing a color and  alpha 
 
             if (ImGui::Button("Button"))                                        // Buttons return true when clicked (most widgets return true when edited/activated)
                 counter++;
@@ -175,19 +187,21 @@ int main(int, char**)
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
            
             //function to display time of programm is open 
-            auto currentTime = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
-            int hours = elapsed / 3600;
-            int minutes = (elapsed % 3600) / 60;
-            int seconds = elapsed % 60;
-            
-            if (ImGui::Button("Display"))
-                displayTime = !displayTime; // change status
-                
-            if (displayTime) {
-                ImGui::SameLine();
-                ImGui::Text("Coding Time: %02d:%02d:%02d", hours, minutes, seconds);
-              
+            void UpdateTimer();{
+                auto currentTime = std::chrono::steady_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
+                int hours = elapsed / 3600;
+                int minutes = (elapsed % 3600) / 60;
+                int seconds = elapsed % 60;
+
+                if (ImGui::Button("Display")) {
+                    displayTime = !displayTime;
+                }
+
+                if (displayTime) {
+                    ImGui::SameLine();
+                    ImGui::Text("Coding Time: %02d:%02d:%02d", hours, minutes, seconds);
+                }
             }
            //Function to display MousePos: x, y 
             if (ImGui::Button("MousePos"))
@@ -213,14 +227,7 @@ int main(int, char**)
             ImGui::End();
         }
 
-        // test function wip by chat gpt 
-        
-           
-
-       
-        
-
-
+      
         // 3. Show another simple window.
         if (show_another_window)
         {
@@ -292,6 +299,30 @@ bool CreateDeviceD3D(HWND hWnd)
     return true;
 }
 
+//W.I.P 
+/*
+// Speichert die Startzeit beim Beenden
+void SaveStart_Time(std::chrono::time_point<std::chrono::steady_clock> start_Time) {
+    std::ofstream file("C:\\time.txt");
+    if (file.is_open()) {
+        auto startEpoch = std::chrono::duration_cast<std::chrono::seconds>(start_Time.time_since_epoch()).count();
+        file << startEpoch;
+        file.close();
+    }
+}
+
+// Lädt die gespeicherte Startzeit
+std::chrono::time_point<std::chrono::steady_clock> LoadStart_Time() {
+    std::ifstream file("time.txt");
+    if (file.is_open()) {
+        long long saved_Time;
+        file >> saved_Time;
+        file.close();
+        return std::chrono::time_point<std::chrono::steady_clock>(std::chrono::seconds(saved_Time));
+    }
+    return std::chrono::steady_clock::now();
+}
+*/
 void CleanupDeviceD3D()
 {
     CleanupRenderTarget();
@@ -327,6 +358,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         return true;
     switch (msg)
     {
+    
     case WM_SIZE:
         if (wParam == SIZE_MINIMIZED)
             return 0;
@@ -343,3 +375,5 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 }
+
+
